@@ -66,9 +66,11 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
   const API_URL = import.meta.env.VITE_API_URL || "https://boink-test.vercel.app";
   const IPFS_GATEWAYS = [
     import.meta.env.VITE_IPFS_GATEWAY,
+    "https://ipfs.io/ipfs/",
     "https://cloudflare-ipfs.com/ipfs/",
-    "https://dweb.link/ipfs/",
-    "https://ipfs.io/ipfs/"
+    "https://gateway.pinata.cloud/ipfs/",
+    "https://nftstorage.link/ipfs/",
+    "https://dweb.link/ipfs/"
   ].filter(Boolean);
 
   // Initialize contracts
@@ -146,24 +148,48 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       const cid = uri.slice(7);
       return IPFS_GATEWAYS.map((g) => `${g}${cid}`);
     }
+    // Check if it's already using one of our gateways
     for (const gateway of IPFS_GATEWAYS) {
       if (uri.startsWith(gateway)) {
         const cid = uri.slice(gateway.length);
         return IPFS_GATEWAYS.map((g) => `${g}${cid}`);
       }
     }
+    // Check for subdomain format (e.g., https://bafyxxx.ipfs.dweb.link/)
+    const subdomainMatch = uri.match(/https?:\/\/([^.]+)\.ipfs\.[^/]+\/(.*)/);
+    if (subdomainMatch) {
+      const cid = subdomainMatch[1] + (subdomainMatch[2] ? '/' + subdomainMatch[2] : '');
+      return IPFS_GATEWAYS.map((g) => `${g}${cid}`);
+    }
     return [];
   };
 
   const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>, uri: string) => {
     const img = event.currentTarget;
-    const urls = getIpfsGatewayUrls(uri || img.src);
-    if (urls.length === 0) return;
+    const currentSrc = img.src;
+
+    // Get all possible gateway URLs for this image
+    const urls = getIpfsGatewayUrls(uri || currentSrc);
+
+    if (urls.length === 0) {
+      console.log('No alternative gateways found for:', currentSrc);
+      return;
+    }
+
+    // Find current gateway index
     const currentIndex = urls.findIndex((u) => img.src === u);
     const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1;
-    if (nextIndex >= urls.length) return;
+
+    if (nextIndex >= urls.length) {
+      console.log('All gateways exhausted for:', uri);
+      return;
+    }
+
+    console.log(`Trying alternative gateway ${nextIndex + 1}/${urls.length}:`, urls[nextIndex]);
     img.src = urls[nextIndex];
   };
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const fetchTokenMetadata = async (nft: ethers.Contract, tokenId: string) => {
     try {
@@ -175,18 +201,70 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
         return { tokenUri, name: json.name, imageUrl: resolveUri(json.image || json.image_url || "") };
       }
 
+      // Extract CID for proxy fallback
+      const extractCID = (uri: string) => {
+        if (uri.startsWith("ipfs://")) return uri.slice(7);
+        const match = uri.match(/\/ipfs\/([^/?]+)/);
+        return match ? match[1] : null;
+      };
+
       const gatewaysToTry = tokenUri.startsWith("ipfs://") ? IPFS_GATEWAYS : [null];
       for (const gateway of gatewaysToTry) {
-        const resolved = gateway ? resolveUri(tokenUri, gateway) : resolveUri(tokenUri);
-        if (!resolved) continue;
-        const resp = await fetch(resolved);
-        if (!resp.ok) continue;
-        const json = await resp.json();
-        return { tokenUri, name: json.name, imageUrl: resolveUri(json.image || json.image_url || "") };
+        try {
+          const resolved = gateway ? resolveUri(tokenUri, gateway) : resolveUri(tokenUri);
+          if (!resolved) continue;
+
+          const resp = await fetch(resolved, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'force-cache',
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+
+          if (!resp.ok) continue;
+          const json = await resp.json();
+
+          // Resolve image URL with the same gateway that worked for metadata
+          const imageUri = json.image || json.image_url || "";
+          let imageUrl = "";
+          if (imageUri) {
+            if (imageUri.startsWith("ipfs://") && gateway) {
+              imageUrl = resolveUri(imageUri, gateway);
+            } else {
+              imageUrl = resolveUri(imageUri);
+            }
+          }
+
+          return { tokenUri, name: json.name, imageUrl };
+        } catch (err) {
+          console.log(`Gateway ${gateway || 'default'} failed for token ${tokenId}:`, err);
+          continue;
+        }
+      }
+
+      // Fallback to backend proxy for IPFS content
+      const cid = extractCID(tokenUri);
+      if (cid) {
+        try {
+          console.log(`Using proxy fallback for token ${tokenId}`);
+          const proxyUrl = `${API_URL}/api/ipfs-proxy?cid=${encodeURIComponent(cid)}`;
+          const resp = await fetch(proxyUrl);
+          if (resp.ok) {
+            const json = await resp.json();
+            const imageUri = json.image || json.image_url || "";
+            const imageUrl = imageUri ? resolveUri(imageUri) : "";
+            return { tokenUri, name: json.name, imageUrl };
+          }
+        } catch (err) {
+          console.error(`Proxy fallback failed for token ${tokenId}:`, err);
+        }
       }
 
       return { tokenUri };
-    } catch {
+    } catch (err) {
+      console.error(`Failed to fetch metadata for token ${tokenId}:`, err);
       return {};
     }
   };
@@ -353,8 +431,30 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       const isApproved = await nftContract.isApprovedForAll(connectedWallet, STAKING_CONTRACT_ADDRESS);
       if (!isApproved) {
         toast({ title: "Approval Required", description: "Approving NFT contract..." });
-        const approveTx = await nftContract.setApprovalForAll(STAKING_CONTRACT_ADDRESS, true);
-        await approveTx.wait();
+        const maxAttempts = 2;
+        let approved = false;
+        let lastError: any = null;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const approveTx = await nftContract.setApprovalForAll(STAKING_CONTRACT_ADDRESS, true);
+            await approveTx.wait();
+            approved = true;
+            break;
+          } catch (err) {
+            lastError = err;
+            if (attempt < maxAttempts) {
+              await sleep(1200);
+            }
+          }
+        }
+        if (!approved) {
+          toast({
+            variant: "destructive",
+            title: "Approval Failed",
+            description: "RPC error while approving. Please try again."
+          });
+          throw lastError || new Error("Approval failed");
+        }
         toast({ title: "Approved", description: "NFT contract approved" });
       }
 
