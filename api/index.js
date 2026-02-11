@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import { userRoutes } from '../server/routes/userRoutes.js';
+import { stakingRoutes } from '../server/routes/stakingRoutes.js';
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use(async (req, res, next) => {
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/staking', stakingRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {
