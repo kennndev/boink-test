@@ -64,6 +64,8 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
   const EXPECTED_CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "763373";
   const INK_SEPOLIA_RPC = "https://rpc-gel-sepolia.inkonchain.com";
   const API_URL = import.meta.env.VITE_API_URL || "https://boink-test.vercel.app";
+  const POINTS_PER_INTERVAL = 1;
+  const INTERVAL_MINUTES = 5;
 
   // Initialize contracts
   useEffect(() => {
@@ -586,12 +588,12 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
         </h3>
         <div className="space-y-1 text-[10px] sm:text-xs font-retro text-gray-700">
           <div className="flex justify-between">
-            <span>Daily Points:</span>
-            <span className="font-pixel text-blue-600">100 points per NFT</span>
+            <span>Points per {INTERVAL_MINUTES} min:</span>
+            <span className="font-pixel text-blue-600">{POINTS_PER_INTERVAL} point per NFT</span>
           </div>
           <div className="flex justify-between">
-            <span>Your Daily Rate:</span>
-            <span className="font-pixel text-green-600">{userStakedCount * 100} points/day</span>
+            <span>Your {INTERVAL_MINUTES} min Rate:</span>
+            <span className="font-pixel text-green-600">{userStakedCount * POINTS_PER_INTERVAL} points/{INTERVAL_MINUTES} min</span>
           </div>
           <div className="flex justify-between">
             <span>Staking Contract:</span>
@@ -607,7 +609,7 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       {/* Help text */}
       <div className="win98-border p-1.5 sm:p-2 bg-gray-100">
         <p className="text-[9px] sm:text-[10px] font-retro text-gray-600">
-          Click NFTs to select, then Stake or Unstake. Earn 100 points daily per staked NFT.
+          Click NFTs to select, then Stake or Unstake. Earn {POINTS_PER_INTERVAL} point every {INTERVAL_MINUTES} minutes per staked NFT.
           {isPaused && " Staking is currently paused by the admin."}
         </p>
       </div>
