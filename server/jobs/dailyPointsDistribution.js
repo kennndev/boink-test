@@ -89,11 +89,18 @@ export async function distributeStakingPoints() {
   console.log(`[Daily Points] Starting daily points distribution at ${new Date().toISOString()}`);
 
   try {
-    // Step 1: Get all unique wallet addresses that have ever staked
+    // Step 1: Get all unique wallet addresses
+    // Check both User collection (anyone who has connected) and Staking records
+    const allUsers = await User.find({}).select('walletAddress');
     const allStakingRecords = await Staking.find({});
-    const uniqueWallets = [...new Set(allStakingRecords.map(s => s.walletAddress))];
 
-    console.log(`[Daily Points] Found ${uniqueWallets.length} unique wallets to check`);
+    const walletSet = new Set();
+    allUsers.forEach(u => walletSet.add(u.walletAddress));
+    allStakingRecords.forEach(s => walletSet.add(s.walletAddress));
+
+    const uniqueWallets = Array.from(walletSet);
+
+    console.log(`[Daily Points] Found ${uniqueWallets.length} unique wallets to check (${allUsers.length} users, ${new Set(allStakingRecords.map(s => s.walletAddress)).size} with staking history)`);
 
     // Step 2: Sync each wallet's staking state from blockchain
     for (const wallet of uniqueWallets) {
