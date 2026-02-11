@@ -4,6 +4,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/staking/:path*",
+      "destination": "/api/staking/[...path].js"
+    },
+    {
       "source": "/api/users/:path*",
       "destination": "/api/index.js"
     },
@@ -14,6 +18,12 @@
     {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/staking/distribute-points",
+      "schedule": "0 0 * * *"
     }
   ]
 }
