@@ -46,11 +46,9 @@ const STAKING_ABI = [
   "function stakedCount(address user) external view returns (uint256)"
 ];
 
-const STAKING_CONTRACT_ADDRESS = process.env.VITE_STAKING_CONTRACT_ADDRESS || "0xBE1F446338737E3A9d60fD0a71cf9C53f329E7dd";
+const STAKING_CONTRACT_ADDRESS = process.env.VITE_STAKING_CONTRACT_ADDRESS || "";
 const RPC_URL = process.env.VITE_RPC_URL || "https://rpc-gel-sepolia.inkonchain.com";
-const DISTRIBUTION_INTERVAL_MINUTES = 5;
-const POINTS_PER_NFT_PER_INTERVAL = Number(process.env.STAKING_POINTS_PER_INTERVAL || 1);
-const POINTS_PER_NFT_PER_DAY = POINTS_PER_NFT_PER_INTERVAL * (24 * 60 / DISTRIBUTION_INTERVAL_MINUTES);
+const POINTS_PER_NFT_PER_DAY = 100;
 
 function getStakingContract() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -168,9 +166,8 @@ export default async (req, res) => {
         }
 
         const now = Date.now();
-        const timeElapsedMinutes = (now - stakeRecord.lastClaimAt.getTime()) / (1000 * 60);
-        const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
-        const pendingPoints = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
+        const timeElapsedDays = (now - stakeRecord.lastClaimAt.getTime()) / (1000 * 60 * 60 * 24);
+        const pendingPoints = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
 
         if (pendingPoints > 0) {
           unstakedPoints += pendingPoints;
@@ -300,9 +297,8 @@ export default async (req, res) => {
         if (stakeRecord) {
           const now = Date.now();
           const timeElapsedMs = now - stakeRecord.lastClaimAt.getTime();
-          const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
-          const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
-          const pendingPoints = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
+          const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
+          const pendingPoints = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
 
           if (pendingPoints > 0) {
             unstakedPoints += pendingPoints;
