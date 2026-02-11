@@ -8,6 +8,10 @@
       "destination": "/api/staking/[...path].js"
     },
     {
+      "source": "/api/ipfs-proxy",
+      "destination": "/api/ipfs-proxy.js"
+    },
+    {
       "source": "/api/users/:path*",
       "destination": "/api/index.js"
     },
