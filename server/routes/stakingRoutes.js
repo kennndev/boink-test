@@ -14,7 +14,9 @@ const STAKING_ABI = [
 
 const STAKING_CONTRACT_ADDRESS = process.env.VITE_STAKING_CONTRACT_ADDRESS || "0xBE1F446338737E3A9d60fD0a71cf9C53f329E7dd";
 const RPC_URL = process.env.VITE_RPC_URL || "https://rpc-gel-sepolia.inkonchain.com";
-const POINTS_PER_NFT_PER_DAY = 100;
+const DISTRIBUTION_INTERVAL_MINUTES = 5;
+const POINTS_PER_NFT_PER_INTERVAL = Number(process.env.STAKING_POINTS_PER_INTERVAL || 1);
+const POINTS_PER_NFT_PER_DAY = POINTS_PER_NFT_PER_INTERVAL * (24 * 60 / DISTRIBUTION_INTERVAL_MINUTES);
 
 /**
  * Get staking contract instance
@@ -100,8 +102,9 @@ router.post('/record-unstake', async (req, res) => {
 
       const now = Date.now();
       const timeElapsedMs = now - stakeRecord.lastClaimAt.getTime();
-      const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
-      const pendingPoints = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
+      const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+      const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
+      const pendingPoints = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
 
       if (pendingPoints > 0) {
         unstakedPoints += pendingPoints;
@@ -209,8 +212,9 @@ router.post('/sync/:walletAddress', async (req, res) => {
         // Calculate and award pending points for this NFT before marking as unstaked
         const now = Date.now();
         const timeElapsedMs = now - stakeRecord.lastClaimAt.getTime();
-        const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
-        const pendingPoints = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
+        const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+        const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
+        const pendingPoints = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
 
         if (pendingPoints > 0) {
           unstakedPoints += pendingPoints;
