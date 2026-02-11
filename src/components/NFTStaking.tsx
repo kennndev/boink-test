@@ -140,6 +140,31 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
     return uri;
   };
 
+  const getIpfsGatewayUrls = (uri: string) => {
+    if (!uri) return [];
+    if (uri.startsWith("ipfs://")) {
+      const cid = uri.slice(7);
+      return IPFS_GATEWAYS.map((g) => `${g}${cid}`);
+    }
+    for (const gateway of IPFS_GATEWAYS) {
+      if (uri.startsWith(gateway)) {
+        const cid = uri.slice(gateway.length);
+        return IPFS_GATEWAYS.map((g) => `${g}${cid}`);
+      }
+    }
+    return [];
+  };
+
+  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>, uri: string) => {
+    const img = event.currentTarget;
+    const urls = getIpfsGatewayUrls(uri || img.src);
+    if (urls.length === 0) return;
+    const currentIndex = urls.findIndex((u) => img.src === u);
+    const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1;
+    if (nextIndex >= urls.length) return;
+    img.src = urls[nextIndex];
+  };
+
   const fetchTokenMetadata = async (nft: ethers.Contract, tokenId: string) => {
     try {
       const tokenUri = await nft.tokenURI(tokenId);
@@ -525,7 +550,13 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
                   >
                     <div className="aspect-square bg-gradient-to-br from-purple-400 to-blue-500 rounded flex items-center justify-center mb-1 overflow-hidden">
                       {nft.imageUrl ? (
-                        <img src={nft.imageUrl} alt={`NFT #${nft.tokenId}`} className="w-full h-full object-cover" loading="lazy" />
+                        <img
+                          src={nft.imageUrl}
+                          alt={`NFT #${nft.tokenId}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(event) => handleImageError(event, nft.imageUrl || "")}
+                        />
                       ) : (
                         <span className="text-white text-lg sm:text-xl">NFT</span>
                       )}
@@ -572,7 +603,13 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
                   >
                     <div className="aspect-square bg-gradient-to-br from-green-400 to-emerald-500 rounded flex items-center justify-center mb-1 relative overflow-hidden">
                       {nft.imageUrl ? (
-                        <img src={nft.imageUrl} alt={`NFT #${nft.tokenId}`} className="w-full h-full object-cover" loading="lazy" />
+                        <img
+                          src={nft.imageUrl}
+                          alt={`NFT #${nft.tokenId}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(event) => handleImageError(event, nft.imageUrl || "")}
+                        />
                       ) : (
                         <span className="text-white text-lg sm:text-xl">NFT</span>
                       )}
