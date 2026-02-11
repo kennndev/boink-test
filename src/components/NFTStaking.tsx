@@ -327,11 +327,15 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
 
       toast({ title: "Staked!", description: `Successfully staked ${tokenIds.length} NFT(s)` });
 
-      // Sync staking state with backend
+      // Record staking state with backend
       try {
-        await fetch(`${API_URL}/api/staking/sync/${connectedWallet}`, { method: 'POST' });
+        await fetch(`${API_URL}/api/staking/record-stake`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress: connectedWallet, tokenIds })
+        });
       } catch (e) {
-        console.error('Failed to sync staking state:', e);
+        console.error('Failed to record stake:', e);
       }
 
       setSelectedNFTs(new Set());
@@ -358,11 +362,15 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
 
       toast({ title: "Unstaked!", description: `Successfully unstaked ${tokenIds.length} NFT(s)` });
 
-      // Sync staking state with backend (auto-awards pending points)
+      // Record unstaking state with backend (auto-awards pending points)
       try {
-        await fetch(`${API_URL}/api/staking/sync/${connectedWallet}`, { method: 'POST' });
+        await fetch(`${API_URL}/api/staking/record-unstake`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress: connectedWallet, tokenIds })
+        });
       } catch (e) {
-        console.error('Failed to sync staking state:', e);
+        console.error('Failed to record unstake:', e);
       }
 
       setSelectedStakedNFTs(new Set());
