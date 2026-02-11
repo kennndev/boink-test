@@ -2,7 +2,9 @@ import { ethers } from 'ethers';
 import { User } from '../models/User.js';
 import { Staking } from '../models/Staking.js';
 
-const POINTS_PER_NFT_PER_DAY = 100;
+const DISTRIBUTION_INTERVAL_MINUTES = 5;
+const POINTS_PER_NFT_PER_INTERVAL = Number(process.env.STAKING_POINTS_PER_INTERVAL || 1);
+const POINTS_PER_NFT_PER_DAY = POINTS_PER_NFT_PER_INTERVAL * (24 * 60 / DISTRIBUTION_INTERVAL_MINUTES);
 
 // Contract configuration
 const STAKING_ABI = [
@@ -82,12 +84,12 @@ async function syncUserStaking(walletAddress) {
 }
 
 /**
- * Daily cron job to distribute staking points
- * Runs once per day and awards points to all active stakers
+ * Distribution cron job to award points on a fixed interval
+ * Current interval: every 5 minutes
  * Optional on-chain sync before distributing (see STAKING_SYNC_BEFORE_DISTRIBUTION)
  */
 export async function distributeStakingPoints() {
-  console.log(`[Daily Points] Starting daily points distribution at ${new Date().toISOString()}`);
+  console.log(`[Daily Points] Starting points distribution at ${new Date().toISOString()}`);
 
   try {
     // Step 1: Get all unique wallet addresses
@@ -150,12 +152,11 @@ export async function distributeStakingPoints() {
         for (const stake of stakes) {
           const lastClaimTime = stake.lastClaimAt.getTime();
           const timeElapsedMs = now - lastClaimTime;
-          const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
+          const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+          const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
 
-          // TESTING MODE: Award points proportionally for any time elapsed
-          // In production, you may want: if (timeElapsedDays >= 1)
-          if (timeElapsedDays > 0) {
-            const points = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
+          if (intervalsElapsed > 0) {
+            const points = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
             walletPoints += points;
 
             // Update lastClaimAt to now
@@ -233,9 +234,12 @@ export async function getPendingPoints(walletAddress) {
   for (const stake of activeStakes) {
     const lastClaimTime = stake.lastClaimAt.getTime();
     const timeElapsedMs = now - lastClaimTime;
-    const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
-    const points = timeElapsedDays * POINTS_PER_NFT_PER_DAY;
-    totalPendingPoints += points;
+    const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+    const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
+    if (intervalsElapsed > 0) {
+      const points = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
+      totalPendingPoints += points;
+    }
   }
 
   return {
@@ -246,16 +250,17 @@ export async function getPendingPoints(walletAddress) {
 }
 
 /**
- * Calculate when the next daily distribution will occur
+ * Calculate when the next interval distribution will occur
  */
 function getNextDistributionTime() {
   const now = new Date();
   const next = new Date(now);
-  next.setUTCHours(0, 0, 0, 0); // Set to midnight UTC
-  next.setDate(next.getDate() + 1); // Tomorrow
+  const msInterval = DISTRIBUTION_INTERVAL_MINUTES * 60 * 1000;
+  const nextMs = Math.ceil(now.getTime() / msInterval) * msInterval;
+  next.setTime(nextMs);
 
   return {
     timestamp: next.toISOString(),
-    hoursRemaining: Math.ceil((next.getTime() - now.getTime()) / (1000 * 60 * 60))
+    minutesRemaining: Math.ceil((next.getTime() - now.getTime()) / (1000 * 60))
   };
 }
