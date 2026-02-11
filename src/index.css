@@ -1,0 +1,401 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Vibrant Gaming Theme */
+    --background: 200 100% 25%; /* Single deep blue background */
+    --foreground: 0 0% 95%; /* Bright white text */
+
+    --card: 0 0% 90%; /* Light gray cards */
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 90%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 280 100% 60%; /* Bright purple */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 85%; /* Light gray */
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 0% 80%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 45 100% 60%; /* Bright yellow accent */
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 60%;
+    --input: 0 0% 100%;
+    --ring: 280 100% 60%;
+
+    --radius: 0px; /* Sharp corners for retro feel */
+
+    /* Gaming UI specific colors */
+    --retro-shadow-dark: 0 0% 20%;
+    --retro-shadow-light: 0 0% 100%;
+    --taskbar: 0 0% 80%;
+    --taskbar-hover: 0 0% 90%;
+    
+    /* Vibrant gradient for pixel text */
+    --pixel-gradient-start: 280 100% 70%;
+    --pixel-gradient-end: 320 100% 75%;
+  }
+
+  .dark {
+    --background: 200 100% 15%; /* Darker ocean blue */
+    --foreground: 0 0% 90%;
+
+    --card: 0 0% 20%;
+    --card-foreground: 0 0% 90%;
+
+    --popover: 0 0% 20%;
+    --popover-foreground: 0 0% 90%;
+
+    --primary: 280 100% 70%; /* Brighter purple */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 25%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 45 100% 70%; /* Brighter yellow */
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 40%;
+    --input: 0 0% 20%;
+    --ring: 280 100% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    image-rendering: pixelated;
+    /* Mobile optimizations */
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile-specific optimizations */
+  @media (max-width: 640px) {
+    body {
+      font-size: 14px;
+    }
+    
+    /* Prevent zoom on input focus */
+    input, textarea, select {
+      font-size: 16px;
+    }
+    
+    /* Touch-friendly button sizes */
+    button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+}
+
+@layer utilities {
+  /* Windows 98 3D Border Effect */
+  .win98-border {
+    border: 2px solid;
+    border-color: hsl(var(--retro-shadow-light)) hsl(var(--retro-shadow-dark)) hsl(var(--retro-shadow-dark)) hsl(var(--retro-shadow-light));
+  }
+
+  .win98-border-inset {
+    border: 2px solid;
+    border-color: hsl(var(--retro-shadow-dark)) hsl(var(--retro-shadow-light)) hsl(var(--retro-shadow-light)) hsl(var(--retro-shadow-dark));
+  }
+
+  /* Pixel text gradient */
+  .pixel-gradient-text {
+    background: linear-gradient(135deg, hsl(var(--pixel-gradient-start)), hsl(var(--pixel-gradient-end)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gaming Font Classes */
+  .font-pixel {
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    letter-spacing: 0.05em;
+  }
+
+  .font-retro {
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 1.1rem;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+  }
+
+  .font-futuristic {
+    font-family: 'Orbitron', 'Arial', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .font-cyber {
+    font-family: 'Exo 2', 'Arial', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .font-military {
+    font-family: 'Rajdhani', 'Arial', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .font-audio {
+    font-family: 'Audiowide', 'Arial', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+  }
+
+  .font-bold-gaming {
+    font-family: 'Russo One', 'Arial', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+  }
+
+  .font-army {
+    font-family: 'Black Ops One', 'Arial', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+  }
+
+  /* Gaming Text Effects - Disabled to prevent blurring */
+  .text-glow {
+    /* Disabled - was causing text blur */
+  }
+
+  .text-neon {
+    /* Disabled - was causing text blur */
+  }
+
+  .text-outline {
+    text-shadow: 
+      -1px -1px 0 #000,
+      1px -1px 0 #000,
+      -1px 1px 0 #000,
+      1px 1px 0 #000;
+  }
+
+  .text-3d {
+    text-shadow: 
+      1px 1px 0 #333,
+      2px 2px 0 #333;
+  }
+
+  /* Attractive Gradient Text Colors */
+  .text-gradient-purple {
+    background: linear-gradient(135deg, #8B5CF6, #A855F7, #C084FC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #3B82F6, #60A5FA, #93C5FD);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-yellow {
+    background: linear-gradient(135deg, #F59E0B, #FBBF24, #FDE047);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-pink {
+    background: linear-gradient(135deg, #EC4899, #F472B6, #F9A8D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-green {
+    background: linear-gradient(135deg, #10B981, #34D399, #6EE7B7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-orange {
+    background: linear-gradient(135deg, #F97316, #FB923C, #FDBA74);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-red {
+    background: linear-gradient(135deg, #EF4444, #F87171, #FCA5A5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #06B6D4, #22D3EE, #67E8F9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-indigo {
+    background: linear-gradient(135deg, #6366F1, #818CF8, #A5B4FC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-emerald {
+    background: linear-gradient(135deg, #059669, #10B981, #34D399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Vibrant Background Gradients */
+  .bg-gradient-ocean {
+    background: linear-gradient(135deg, #1E40AF, #3B82F6, #60A5FA);
+  }
+
+  .bg-gradient-purple {
+    background: linear-gradient(135deg, #7C3AED, #8B5CF6, #A855F7);
+  }
+
+  .bg-gradient-sunset {
+    background: linear-gradient(135deg, #F59E0B, #EC4899, #8B5CF6);
+  }
+
+  .bg-gradient-neon {
+    background: linear-gradient(135deg, #10B981, #F59E0B, #EF4444);
+  }
+
+  /* Gaming Animations */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    /* Disabled - was causing text blur */
+  }
+
+  .animate-text-flicker {
+    animation: text-flicker 0.15s infinite linear;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { 
+      text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+    }
+    50% { 
+      text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+    }
+  }
+
+  @keyframes text-flicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+      opacity: 1;
+    }
+    20%, 24%, 55% {
+      opacity: 0.4;
+    }
+  }
+
+  /* Mobile-specific utilities */
+  .mobile-grid {
+    @apply grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-4;
+  }
+
+  .mobile-text {
+    @apply text-sm sm:text-base;
+  }
+
+  .mobile-heading {
+    @apply text-lg sm:text-2xl;
+  }
+
+  .mobile-padding {
+    @apply p-2 sm:p-4;
+  }
+
+  .mobile-spacing {
+    @apply space-y-2 sm:space-y-4;
+  }
+
+  /* Touch-friendly interactions */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Mobile viewport fixes */
+  .mobile-viewport {
+    @apply h-screen w-screen overflow-hidden;
+  }
+
+  /* Mobile only: Icons wrap to 2 columns when needed (only affects screens below md) */
+  @media (max-width: 767px) {
+    .mobile-icon-wrap {
+      flex-wrap: wrap;
+      flex-direction: row;
+      max-width: 180px;
+    }
+    
+    .mobile-icon-wrap > * {
+      flex: 0 0 calc(50% - 0.375rem);
+      max-width: calc(50% - 0.375rem);
+    }
+  }
+
+  /* Desktop icons: single column on mobile, flex column on larger screens */
+  @media (min-width: 640px) {
+    .desktop-icons-columns {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      height: auto;
+      max-height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .desktop-icon-wrapper {
+      flex-shrink: 0;
+      margin-bottom: 0;
+    }
+  }
+}

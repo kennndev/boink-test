@@ -1,0 +1,17 @@
+BOINK is a retro onchain arcade built for fast, fair games and NFT-native rewards.
+
+COIN FLIP
+- Provably fair outcomes with onchain settlement.
+- Instant wins/losses, transparent odds, and verifiable history.
+
+NFT STAKING
+- Stake your ERC-721s to earn BOO rewards.
+- Claim any time, view staked counts, and track pending rewards in-app.
+
+ROADMAP (LIVE -> NEXT)
+1) Live: Coin Flip, Wallet Connect, NFT Staking, Rewards UI.
+2) Next: Multi-game arcade, seasonal leaderboards, and rarity-based perks.
+3) Later: Creator drops, marketplace utility, and cross-chain expansion.
+
+MISSION
+Make onchain gaming feel as fun and simple as classic arcade games while keeping the mechanics fully transparent.
