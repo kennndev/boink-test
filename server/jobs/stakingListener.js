@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { Staking } from '../models/Staking.js';
+import { User } from '../models/User.js';
 
 const STAKING_ABI = [
   "event Staked(address indexed user, uint256[] tokenIds)",
@@ -11,6 +12,7 @@ const RPC_URL = process.env.VITE_RPC_URL || "https://rpc-gel-sepolia.inkonchain.
 const POLL_INTERVAL_MS = Number(process.env.STAKING_LISTENER_POLL_MS || 5000);
 const MAX_BLOCK_RANGE = Number(process.env.STAKING_LISTENER_MAX_BLOCK_RANGE || 1000);
 const START_BLOCK_ENV = process.env.STAKING_LISTENER_START_BLOCK;
+const POINTS_PER_NFT_PER_DAY = 100;
 
 function getStakingContract() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -44,6 +46,7 @@ async function handleStaked(user, tokenIds) {
 
 async function handleUnstaked(user, tokenIds) {
   const walletAddress = user.toLowerCase().trim();
+  let pendingPointsTotal = 0;
   for (const tokenId of tokenIds) {
     const tokenIdStr = tokenId.toString();
     const stakeRecord = await Staking.findOne({
@@ -56,9 +59,26 @@ async function handleUnstaked(user, tokenIds) {
       continue;
     }
 
+    const now = Date.now();
+    const timeElapsedMs = now - stakeRecord.lastClaimAt.getTime();
+    const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
+    const pendingPoints = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
+    if (pendingPoints > 0) {
+      pendingPointsTotal += pendingPoints;
+    }
+
     stakeRecord.isActive = false;
     stakeRecord.unstakedAt = new Date();
     await stakeRecord.save();
+  }
+
+  if (pendingPointsTotal > 0) {
+    let userDoc = await User.findOne({ walletAddress });
+    if (!userDoc) {
+      userDoc = new User({ walletAddress, points: 0 });
+    }
+    userDoc.points += pendingPointsTotal;
+    await userDoc.save();
   }
 }
 
