@@ -9,8 +9,9 @@ const STAKING_ABI = [
   "function stakedTokensOf(address user) external view returns (uint256[])",
   "function stakedCount(address user) external view returns (uint256)"
 ];
-const STAKING_CONTRACT_ADDRESS = process.env.VITE_STAKING_CONTRACT_ADDRESS || "0xBE1F446338737E3A9d60fD0a71cf9C53f329E7dd";
+const STAKING_CONTRACT_ADDRESS = process.env.VITE_STAKING_CONTRACT_ADDRESS || "";
 const RPC_URL = process.env.VITE_RPC_URL || "https://rpc-gel-sepolia.inkonchain.com";
+const SYNC_ONCHAIN_BEFORE_DISTRIBUTION = process.env.STAKING_SYNC_BEFORE_DISTRIBUTION === 'true';
 
 function getStakingContract() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -83,7 +84,7 @@ async function syncUserStaking(walletAddress) {
 /**
  * Daily cron job to distribute staking points
  * Runs once per day and awards points to all active stakers
- * Now includes automatic blockchain sync before distributing
+ * Optional on-chain sync before distributing (see STAKING_SYNC_BEFORE_DISTRIBUTION)
  */
 export async function distributeStakingPoints() {
   console.log(`[Daily Points] Starting daily points distribution at ${new Date().toISOString()}`);
@@ -102,9 +103,13 @@ export async function distributeStakingPoints() {
 
     console.log(`[Daily Points] Found ${uniqueWallets.length} unique wallets to check (${allUsers.length} users, ${new Set(allStakingRecords.map(s => s.walletAddress)).size} with staking history)`);
 
-    // Step 2: Sync each wallet's staking state from blockchain
-    for (const wallet of uniqueWallets) {
-      await syncUserStaking(wallet);
+    // Step 2: Sync each wallet's staking state from blockchain (optional)
+    if (SYNC_ONCHAIN_BEFORE_DISTRIBUTION) {
+      for (const wallet of uniqueWallets) {
+        await syncUserStaking(wallet);
+      }
+    } else {
+      console.log('[Daily Points] Skipping on-chain sync (STAKING_SYNC_BEFORE_DISTRIBUTION=false)');
     }
 
     // Step 3: Get all currently active staking records (after sync)
