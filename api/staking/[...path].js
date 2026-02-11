@@ -67,12 +67,13 @@ export default async (req, res) => {
   // Connect to database
   await connectToDatabase();
 
-  // Parse path
-  const path = req.url.split('?')[0];
+  // Parse path - remove /api/staking prefix
+  const fullPath = req.url.split('?')[0];
+  const path = fullPath.replace('/api/staking', '') || '/';
   const pathParts = path.split('/').filter(Boolean);
 
-  // Route: POST /api/staking/distribute-points
-  if (req.method === 'POST' && pathParts[0] === 'distribute-points') {
+  // Route: POST /distribute-points
+  if (req.method === 'POST' && (pathParts[0] === 'distribute-points' || path === '/distribute-points')) {
     try {
       const result = await distributeStakingPoints();
       return res.status(200).json({
@@ -92,7 +93,7 @@ export default async (req, res) => {
     }
   }
 
-  // Route: GET /api/staking/info/:walletAddress
+  // Route: GET /info/:walletAddress
   if (req.method === 'GET' && pathParts[0] === 'info' && pathParts[1]) {
     try {
       const walletAddress = pathParts[1];
@@ -125,7 +126,7 @@ export default async (req, res) => {
     }
   }
 
-  // Route: POST /api/staking/sync/:walletAddress
+  // Route: POST /sync/:walletAddress
   if (req.method === 'POST' && pathParts[0] === 'sync' && pathParts[1]) {
     try {
       const walletAddress = pathParts[1];
