@@ -26,6 +26,120 @@ function getStakingContract() {
 }
 
 /**
+ * Record a stake in the database (client calls after on-chain tx succeeds)
+ * Body: { walletAddress: string, tokenIds: string[] }
+ */
+router.post('/record-stake', async (req, res) => {
+  try {
+    const { walletAddress, tokenIds } = req.body || {};
+    if (!walletAddress || !Array.isArray(tokenIds) || tokenIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'walletAddress and tokenIds[] required' });
+    }
+
+    const normalizedAddress = walletAddress.toLowerCase().trim();
+
+    for (const tokenId of tokenIds) {
+      const tokenIdStr = String(tokenId);
+      const existing = await Staking.findOne({
+        walletAddress: normalizedAddress,
+        tokenId: tokenIdStr,
+        isActive: true
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      await Staking.create({
+        walletAddress: normalizedAddress,
+        tokenId: tokenIdStr,
+        stakedAt: new Date(),
+        lastClaimAt: new Date(),
+        isActive: true
+      });
+    }
+
+    const { pendingPoints, stakedCount, nextDistribution } = await getPendingPoints(normalizedAddress);
+
+    return res.json({
+      success: true,
+      message: 'Stake recorded',
+      data: { stakedCount, pendingPoints, nextDistribution }
+    });
+  } catch (error) {
+    console.error('[Staking] Error recording stake:', error);
+    return res.status(500).json({ success: false, message: 'Failed to record stake', error: error.message });
+  }
+});
+
+/**
+ * Record an unstake in the database (client calls after on-chain tx succeeds)
+ * Body: { walletAddress: string, tokenIds: string[] }
+ */
+router.post('/record-unstake', async (req, res) => {
+  try {
+    const { walletAddress, tokenIds } = req.body || {};
+    if (!walletAddress || !Array.isArray(tokenIds) || tokenIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'walletAddress and tokenIds[] required' });
+    }
+
+    const normalizedAddress = walletAddress.toLowerCase().trim();
+    let unstakedPoints = 0;
+
+    for (const tokenId of tokenIds) {
+      const tokenIdStr = String(tokenId);
+      const stakeRecord = await Staking.findOne({
+        walletAddress: normalizedAddress,
+        tokenId: tokenIdStr,
+        isActive: true
+      });
+
+      if (!stakeRecord) {
+        continue;
+      }
+
+      const now = Date.now();
+      const timeElapsedMs = now - stakeRecord.lastClaimAt.getTime();
+      const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
+      const pendingPoints = Math.floor(timeElapsedDays * POINTS_PER_NFT_PER_DAY);
+
+      if (pendingPoints > 0) {
+        unstakedPoints += pendingPoints;
+      }
+
+      stakeRecord.isActive = false;
+      stakeRecord.unstakedAt = new Date();
+      await stakeRecord.save();
+    }
+
+    if (unstakedPoints > 0) {
+      let user = await User.findOne({ walletAddress: normalizedAddress });
+      if (!user) {
+        user = new User({ walletAddress: normalizedAddress, points: 0 });
+      }
+      user.points += unstakedPoints;
+      await user.save();
+    }
+
+    const { pendingPoints, stakedCount, nextDistribution } = await getPendingPoints(normalizedAddress);
+
+    return res.json({
+      success: true,
+      message: 'Unstake recorded',
+      data: {
+        stakedCount,
+        pendingPoints,
+        nextDistribution,
+        unstakedPointsAwarded: unstakedPoints
+      }
+    });
+  } catch (error) {
+    console.error('[Staking] Error recording unstake:', error);
+    return res.status(500).json({ success: false, message: 'Failed to record unstake', error: error.message });
+  }
+});
+
+/**
  * Sync staking state from blockchain
  * This checks which NFTs are currently staked on-chain and updates the database
  */
