@@ -89,7 +89,7 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
         const currentChainId = network.chainId.toString();
 
         if (currentChainId !== EXPECTED_CHAIN_ID) {
-          throw new Error(`Please switch to Ink Sepolia network (Chain ID: ${EXPECTED_CHAIN_ID})`);
+          throw new Error(`Please switch to Ink network (Chain ID: ${EXPECTED_CHAIN_ID})`);
         }
 
         const walletSigner = await browserProvider.getSigner();
