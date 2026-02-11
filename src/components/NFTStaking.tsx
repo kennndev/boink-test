@@ -64,6 +64,12 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
   const EXPECTED_CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "57073";
   const VITE_RPC_URL = "https://rpc-gel.inkonchain.com";
   const API_URL = import.meta.env.VITE_API_URL || "https://boink-test.vercel.app";
+  const IPFS_GATEWAYS = [
+    import.meta.env.VITE_IPFS_GATEWAY,
+    "https://cloudflare-ipfs.com/ipfs/",
+    "https://dweb.link/ipfs/",
+    "https://ipfs.io/ipfs/"
+  ].filter(Boolean);
 
   // Initialize contracts
   useEffect(() => {
@@ -127,9 +133,9 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
     return () => clearInterval(interval);
   }, [connectedWallet]);
 
-  const resolveUri = (uri: string) => {
+  const resolveUri = (uri: string, gateway = IPFS_GATEWAYS[0]) => {
     if (!uri) return "";
-    if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
+    if (uri.startsWith("ipfs://")) return `${gateway}${uri.slice(7)}`;
     if (uri.startsWith("ar://")) return `https://arweave.net/${uri.slice(5)}`;
     return uri;
   };
@@ -137,18 +143,24 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
   const fetchTokenMetadata = async (nft: ethers.Contract, tokenId: string) => {
     try {
       const tokenUri = await nft.tokenURI(tokenId);
-      const resolved = resolveUri(tokenUri);
-      if (!resolved) return { tokenUri };
+      if (!tokenUri) return {};
 
-      if (resolved.startsWith("data:application/json;base64,")) {
-        const json = JSON.parse(atob(resolved.slice(29)));
+      if (tokenUri.startsWith("data:application/json;base64,")) {
+        const json = JSON.parse(atob(tokenUri.slice(29)));
         return { tokenUri, name: json.name, imageUrl: resolveUri(json.image || json.image_url || "") };
       }
 
-      const resp = await fetch(resolved);
-      if (!resp.ok) return { tokenUri };
-      const json = await resp.json();
-      return { tokenUri, name: json.name, imageUrl: resolveUri(json.image || json.image_url || "") };
+      const gatewaysToTry = tokenUri.startsWith("ipfs://") ? IPFS_GATEWAYS : [null];
+      for (const gateway of gatewaysToTry) {
+        const resolved = gateway ? resolveUri(tokenUri, gateway) : resolveUri(tokenUri);
+        if (!resolved) continue;
+        const resp = await fetch(resolved);
+        if (!resp.ok) continue;
+        const json = await resp.json();
+        return { tokenUri, name: json.name, imageUrl: resolveUri(json.image || json.image_url || "") };
+      }
+
+      return { tokenUri };
     } catch {
       return {};
     }
