@@ -50,6 +50,9 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
   const [userStakedCount, setUserStakedCount] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
 
+  const [userPoints, setUserPoints] = useState<number>(0);
+  const [pendingPoints, setPendingPoints] = useState<number>(0);
+
   const [loading, setLoading] = useState(true);
   const [staking, setStaking] = useState(false);
   const [unstaking, setUnstaking] = useState(false);
@@ -60,6 +63,7 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
   const STAKING_CONTRACT_ADDRESS = import.meta.env.VITE_STAKING_CONTRACT_ADDRESS || "0xBE1F446338737E3A9d60fD0a71cf9C53f329E7dd";
   const EXPECTED_CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "763373";
   const INK_SEPOLIA_RPC = "https://rpc-gel-sepolia.inkonchain.com";
+  const API_URL = import.meta.env.VITE_API_URL || "https://boink-test.vercel.app";
 
   // Initialize contracts
   useEffect(() => {
@@ -108,6 +112,21 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
     initContracts();
   }, [connectedWallet, connectedWalletName, walletProviders]);
 
+  // Periodically refresh staking points
+  useEffect(() => {
+    if (!connectedWallet) return;
+
+    // Initial fetch
+    fetchStakingPoints(connectedWallet);
+
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchStakingPoints(connectedWallet);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [connectedWallet]);
+
   const resolveUri = (uri: string) => {
     if (!uri) return "";
     if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
@@ -132,6 +151,21 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       return { tokenUri, name: json.name, imageUrl: resolveUri(json.image || json.image_url || "") };
     } catch {
       return {};
+    }
+  };
+
+  // Fetch staking points from backend
+  const fetchStakingPoints = async (walletAddress: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/staking/info/${walletAddress}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setUserPoints(data.data.totalPoints || 0);
+        setPendingPoints(data.data.pendingPoints || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching staking points:', error);
     }
   };
 
@@ -243,6 +277,9 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       );
       setUserNFTs(nftDetails);
 
+      // Fetch staking points from backend
+      await fetchStakingPoints(walletAddress);
+
       setLoading(false);
     } catch (e: any) {
       console.error("Error loading data:", e);
@@ -289,6 +326,14 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       await stakeTx.wait();
 
       toast({ title: "Staked!", description: `Successfully staked ${tokenIds.length} NFT(s)` });
+
+      // Sync staking state with backend
+      try {
+        await fetch(`${API_URL}/api/staking/sync/${connectedWallet}`, { method: 'POST' });
+      } catch (e) {
+        console.error('Failed to sync staking state:', e);
+      }
+
       setSelectedNFTs(new Set());
       await refreshData();
     { /* window.location.reload(); */ }
@@ -312,6 +357,14 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       await unstakeTx.wait();
 
       toast({ title: "Unstaked!", description: `Successfully unstaked ${tokenIds.length} NFT(s)` });
+
+      // Sync staking state with backend (auto-awards pending points)
+      try {
+        await fetch(`${API_URL}/api/staking/sync/${connectedWallet}`, { method: 'POST' });
+      } catch (e) {
+        console.error('Failed to sync staking state:', e);
+      }
+
       setSelectedStakedNFTs(new Set());
       await refreshData();
     } catch (e: any) {
@@ -367,16 +420,40 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <div className="win98-border-inset p-1.5 sm:p-2 bg-secondary text-center">
           <p className="text-[9px] sm:text-[10px] font-retro text-gray-600">Your Staked</p>
           <p className="text-base sm:text-xl font-pixel text-blue-600 font-bold">{userStakedCount}</p>
+        </div>
+        <div className="win98-border-inset p-1.5 sm:p-2 bg-secondary text-center">
+          <p className="text-[9px] sm:text-[10px] font-retro text-gray-600">Your Points</p>
+          <p className="text-base sm:text-xl font-pixel text-purple-600 font-bold">{userPoints}</p>
         </div>
         <div className="win98-border-inset p-1.5 sm:p-2 bg-secondary text-center">
           <p className="text-[9px] sm:text-[10px] font-retro text-gray-600">Total Staked</p>
           <p className="text-base sm:text-xl font-pixel text-green-600 font-bold">{totalStaked}</p>
         </div>
       </div>
+
+      {/* Pending Points */}
+      {pendingPoints > 0 && (
+        <div className="win98-border-inset p-2 sm:p-3 bg-gradient-to-r from-yellow-50 to-orange-50">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] sm:text-xs font-retro text-gray-600">Pending Points</p>
+              <p className="text-[9px] sm:text-[10px] font-retro text-gray-500">
+                Auto-awarded daily
+              </p>
+            </div>
+            <p className="text-lg sm:text-xl font-pixel text-orange-600 font-bold">
+              +{pendingPoints} points
+            </p>
+            <p className="text-[9px] sm:text-[10px] font-retro text-gray-600">
+              Will be added to your total automatically
+            </p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="win98-border-inset p-6 bg-secondary text-center">
