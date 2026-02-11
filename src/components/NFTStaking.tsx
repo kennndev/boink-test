@@ -61,8 +61,8 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
 
   const NFT_CONTRACT_ADDRESS = import.meta.env.VITE_NFT_CONTRACT_ADDRESS || "0x6De023BEA9EE6C99B69c5798C439eb92097A20e9";
   const STAKING_CONTRACT_ADDRESS = import.meta.env.VITE_STAKING_CONTRACT_ADDRESS || "0xBE1F446338737E3A9d60fD0a71cf9C53f329E7dd";
-  const EXPECTED_CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "763373";
-  const INK_SEPOLIA_RPC = "https://rpc-gel-sepolia.inkonchain.com";
+  const EXPECTED_CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "57073";
+  const VITE_RPC_URL = "https://rpc-gel.inkonchain.com";
   const API_URL = import.meta.env.VITE_API_URL || "https://boink-test.vercel.app";
 
   // Initialize contracts
@@ -175,7 +175,7 @@ export const NFTStaking = ({ connectedWallet, connectedWalletName, walletProvide
     const balanceNum = Number(balance);
     if (balanceNum === 0) return [];
 
-    const rpcProvider = new ethers.JsonRpcProvider(INK_SEPOLIA_RPC);
+    const rpcProvider = new ethers.JsonRpcProvider(VITE_RPC_URL);
     const currentBlock = await rpcProvider.getBlockNumber();
     const transferTopic = ethers.id("Transfer(address,address,uint256)");
     const paddedAddress = ethers.zeroPadValue(walletAddress, 32);
