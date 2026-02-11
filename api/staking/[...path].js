@@ -48,6 +48,9 @@ const STAKING_ABI = [
 
 const STAKING_CONTRACT_ADDRESS = process.env.VITE_STAKING_CONTRACT_ADDRESS || "0xBE1F446338737E3A9d60fD0a71cf9C53f329E7dd";
 const RPC_URL = process.env.VITE_RPC_URL || "https://rpc-gel-sepolia.inkonchain.com";
+const DISTRIBUTION_INTERVAL_MINUTES = 5;
+const POINTS_PER_NFT_PER_INTERVAL = Number(process.env.STAKING_POINTS_PER_INTERVAL || 1);
+const POINTS_PER_NFT_PER_DAY = POINTS_PER_NFT_PER_INTERVAL * (24 * 60 / DISTRIBUTION_INTERVAL_MINUTES);
 
 function getStakingContract() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -93,6 +96,122 @@ export default async (req, res) => {
     }
   }
 
+  // Route: POST /record-stake
+  if (req.method === 'POST' && (pathParts[0] === 'record-stake' || path === '/record-stake')) {
+    try {
+      const { walletAddress, tokenIds } = req.body || {};
+      if (!walletAddress || !Array.isArray(tokenIds) || tokenIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'walletAddress and tokenIds[] required' });
+      }
+
+      const normalizedAddress = walletAddress.toLowerCase().trim();
+
+      for (const tokenId of tokenIds) {
+        const tokenIdStr = String(tokenId);
+        const existing = await Staking.findOne({
+          walletAddress: normalizedAddress,
+          tokenId: tokenIdStr,
+          isActive: true
+        });
+
+        if (existing) {
+          continue;
+        }
+
+        await Staking.create({
+          walletAddress: normalizedAddress,
+          tokenId: tokenIdStr,
+          stakedAt: new Date(),
+          lastClaimAt: new Date(),
+          isActive: true
+        });
+      }
+
+      const { pendingPoints, stakedCount, nextDistribution } = await getPendingPoints(normalizedAddress);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Stake recorded',
+        data: { stakedCount, pendingPoints, nextDistribution }
+      });
+    } catch (error) {
+      console.error('Error recording stake:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to record stake',
+        error: error.message
+      });
+    }
+  }
+
+  // Route: POST /record-unstake
+  if (req.method === 'POST' && (pathParts[0] === 'record-unstake' || path === '/record-unstake')) {
+    try {
+      const { walletAddress, tokenIds } = req.body || {};
+      if (!walletAddress || !Array.isArray(tokenIds) || tokenIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'walletAddress and tokenIds[] required' });
+      }
+
+      const normalizedAddress = walletAddress.toLowerCase().trim();
+      let unstakedPoints = 0;
+
+      for (const tokenId of tokenIds) {
+        const tokenIdStr = String(tokenId);
+        const stakeRecord = await Staking.findOne({
+          walletAddress: normalizedAddress,
+          tokenId: tokenIdStr,
+          isActive: true
+        });
+
+        if (!stakeRecord) {
+          continue;
+        }
+
+        const now = Date.now();
+        const timeElapsedMinutes = (now - stakeRecord.lastClaimAt.getTime()) / (1000 * 60);
+        const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
+        const pendingPoints = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
+
+        if (pendingPoints > 0) {
+          unstakedPoints += pendingPoints;
+        }
+
+        stakeRecord.isActive = false;
+        stakeRecord.unstakedAt = new Date();
+        await stakeRecord.save();
+      }
+
+      if (unstakedPoints > 0) {
+        let user = await User.findOne({ walletAddress: normalizedAddress });
+        if (!user) {
+          user = new User({ walletAddress: normalizedAddress, points: 0 });
+        }
+        user.points += unstakedPoints;
+        await user.save();
+      }
+
+      const { pendingPoints, stakedCount, nextDistribution } = await getPendingPoints(normalizedAddress);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Unstake recorded',
+        data: {
+          stakedCount,
+          pendingPoints,
+          nextDistribution,
+          unstakedPointsAwarded: unstakedPoints
+        }
+      });
+    } catch (error) {
+      console.error('Error recording unstake:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to record unstake',
+        error: error.message
+      });
+    }
+  }
+
   // Route: GET /info/:walletAddress
   if (req.method === 'GET' && pathParts[0] === 'info' && pathParts[1]) {
     try {
@@ -112,7 +231,7 @@ export default async (req, res) => {
           pendingPoints,
           totalPoints,
           totalWithPending: totalPoints + pendingPoints,
-          pointsPerDay: stakedCount * 100,
+          pointsPerDay: stakedCount * POINTS_PER_NFT_PER_DAY,
           nextDistribution
         }
       });
@@ -181,8 +300,9 @@ export default async (req, res) => {
         if (stakeRecord) {
           const now = Date.now();
           const timeElapsedMs = now - stakeRecord.lastClaimAt.getTime();
-          const timeElapsedDays = timeElapsedMs / (1000 * 60 * 60 * 24);
-          const pendingPoints = Math.floor(timeElapsedDays * 100);
+          const timeElapsedMinutes = timeElapsedMs / (1000 * 60);
+          const intervalsElapsed = Math.floor(timeElapsedMinutes / DISTRIBUTION_INTERVAL_MINUTES);
+          const pendingPoints = intervalsElapsed * POINTS_PER_NFT_PER_INTERVAL;
 
           if (pendingPoints > 0) {
             unstakedPoints += pendingPoints;
